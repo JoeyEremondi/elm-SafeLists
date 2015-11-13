@@ -98,7 +98,8 @@ infixr 5 `cons`
 
 {-| Split a non-empty list into a head and a tail -}
 uncons : Safe a (OnePlus n) -> (a, Safe a n)
-uncons (SafeList (h :: t)) = (h, SafeList t)
+uncons (SafeList (h :: t)) =
+  (h, SafeList t)
 
 
 {-| Drop type-level information about this list -}
@@ -121,12 +122,14 @@ For internal use only: the given function MUST preserve
 the length of the list.
 -}
 internalMap : (List a -> List b) -> Safe a n -> Safe b n
-internalMap f (SafeList innerList) = SafeList (f innerList)
+internalMap f (SafeList innerList) =
+  SafeList (f innerList)
 
 
 {-| Works as List.map -}
 map : (a -> b) -> Safe a n -> Safe b n
-map f = internalMap (List.map f)
+map f =
+  internalMap (List.map f)
 
 
 
@@ -256,42 +259,50 @@ Length-preserving list functions, identical to operations on List.List
 -}
 
 member : a -> Safe a n -> Bool
-member x (SafeList l) = List.member x l
+member x (SafeList l) =
+  List.member x l
 
 
 {-|-}
 reverse : Safe a n -> Safe a n
-reverse = internalMap List.reverse
+reverse =
+  internalMap List.reverse
 
 
 {-|-}
 all : (a -> Bool) -> Safe a n -> Bool
-all f (SafeList l) = List.all f l
+all f (SafeList l) =
+  List.all f l
 
 
 {-|-}
 any : (a -> Bool) -> Safe a n -> Bool
-any f (SafeList l) = List.any f l
+any f (SafeList l) =
+  List.any f l
 
 
 {-|-}
 map2 : (a -> b -> c) -> Safe a n -> Safe b n -> Safe c n
-map2 f (SafeList l1) (SafeList l2) = SafeList <| List.map2 f l1 l2
+map2 f (SafeList l1) (SafeList l2) =
+  SafeList <| List.map2 f l1 l2
 
 
 {-|-}
 map3 : (a -> b -> c -> d) -> Safe a n -> Safe b n -> Safe c n -> Safe d n
-map3 f (SafeList l1) (SafeList l2) (SafeList l3) = SafeList <| List.map3 f l1 l2 l3
+map3 f (SafeList l1) (SafeList l2) (SafeList l3) =
+  SafeList <| List.map3 f l1 l2 l3
 
 
 {-|-}
 map4 : (a -> b -> c -> d -> e) -> Safe a n -> Safe b n -> Safe c n -> Safe d n -> Safe e n
-map4 f (SafeList l1) (SafeList l2) (SafeList l3) (SafeList l4) = SafeList <| List.map4 f l1 l2 l3 l4
+map4 f (SafeList l1) (SafeList l2) (SafeList l3) (SafeList l4) =
+  SafeList <| List.map4 f l1 l2 l3 l4
 
 
 {-|-}
 map5 : (a -> b -> c -> d -> e -> f) -> Safe a n -> Safe b n -> Safe c n -> Safe d n -> Safe e n -> Safe f n
-map5 f (SafeList l1) (SafeList l2) (SafeList l3) (SafeList l4) (SafeList l5) = SafeList <| List.map5 f l1 l2 l3 l4 l5
+map5 f (SafeList l1) (SafeList l2) (SafeList l3) (SafeList l4) (SafeList l5) =
+  SafeList <| List.map5 f l1 l2 l3 l4 l5
 
 
 {-|-}
@@ -302,9 +313,11 @@ unzip (SafeList l) =
   in
     (SafeList l1, SafeList l2)
 
+
 {-| Just like List.sort, but with a guarantee that length is preserved -}
 sort : Safe comparable n -> Safe comparable n
 sort = internalMap List.sort
+
 
 {-| Sort based on comparable representatives -}
 sortBy : (a -> comparable) -> Safe a n -> Safe a n
