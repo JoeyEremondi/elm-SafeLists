@@ -33,7 +33,9 @@ For example:
       let
         (h1, t1) = uncons someLength3
         (_, t2) = uncons t1
-        (h3, _) = uncons t2
+        (h3, t3) = uncons t2
+        tailCheck : Safe Int Zero
+        tailCheck = t3
       in
         h1 + h3
 
@@ -321,7 +323,9 @@ sumFirstLast =
   let
     (h1, t1) = uncons someLength3
     (_, t2) = uncons t1
-    (h3, _) = uncons t2
+    (h3, t3) = uncons t2
+    tailCheck : Safe Int Zero
+    tailCheck = t3
   in
     h1 + h3
 
