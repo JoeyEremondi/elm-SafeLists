@@ -1,7 +1,7 @@
 {
     "version": "1.0.0",
     "summary": "Lists which encode their length in the type",
-    "repository": "https://github.com/JoeyEremondi/elm-SafeList.git",
+    "repository": "https://github.com/JoeyEremondi/elm-SafeLists.git",
     "license": "BSD3",
     "source-directories": [
         "."
