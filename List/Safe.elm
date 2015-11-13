@@ -1,18 +1,49 @@
 module List.Safe
-  ( Safe, null, cons, uncons, toList
+  ( Safe, null, cons, uncons, toList, fromList
   , map, map2, map3, map4, map5, unzip
   , mapl, mapr, reverseMapr, scanl
-  , maximum, minimum, member, reverse, all, any
+  , maximum, minimum, head, tail, last
+  , member, reverse, all, any
   , sort, sortBy, sortWith
   ) where
 
 
 {-|
+This module provides a form of list which encode their length
+in their type, using the TypeNats library. For example:
+
+    someLength3 : List.Safe Int (OnePlus (OnePlus (OnePlus (Zero))) )
+    someLength3 = 2 `cons` 3 `cons` 4 `cons` null
+
+List whose length doesn't match their type are forbidden.
+For example:
+
+    --Gives type mismatch
+    badLength3 : Safe Int (OnePlus (OnePlus  (Zero)) )
+    badLength3 = 2 `cons` 3 `cons` 4 `cons` null
+
+Because Elm doesn't have GADTs or DataKinds, it's impossible
+to pattern match on SafeLists. Instead, we provide an "uncons"
+function, which splits a list which we know to be non-empty
+into its head and tail.
+
+For example:
+
+    sumFirstLast =
+
+As well, many functions on List.List have been ported over,
+though filter, foldl and foldr are notably absent, as they
+do not preserve the length of the list.
+
+Because Elm is not a higher-kinded language, it is not generally
+possible to use this library when you don't know your list size in advance,
+unless only generic functions like `map` are used.
+
 # Our main type and pseudo-constructors
 @docs Safe, null, cons
 
 # In lieu of pattern matching:
-@docs uncons, toList
+@docs uncons, toList, fromList
 
 # The usual map functions
 @docs map, map2, map3, map4, map5, unzip
@@ -20,16 +51,14 @@ module List.Safe
 # Length-preserving fold-like functions
 @docs mapl, mapr, reverseMapr, scanl
 
-# Type-safe min and max (No need for `Maybe`!)
-@docs maximum, minimum
+# Functions for non-empty lists
+@docs maximum, minimum, head, tail, last
 
 # Utility functions
 @docs  member, reverse, all, any
 
 #Length-preserving sorting functions
 @docs sort, sortBy, sortWith
-
-
 -}
 
 import Debug
@@ -39,36 +68,48 @@ import TypeNat exposing (..)
 {-| A list with length encoded in its type,
 supporting a restricted set of operations. -}
 type Safe a n =
-  IFL (List a)
+  SafeList (List a)
 
 
 {-| A list of length 0 -}
 null : Safe a Zero
-null = IFL []
+null = SafeList []
 
 
-{-| Given a new element and a list of length n, make a list of length n+1 -}
+{-| Given a new element and a list of length n, make a list of length n+1.
+Has the same infix precedence as (::) -}
 cons : a -> Safe a n -> Safe a (OnePlus n)
-cons h (IFL t) = IFL (h :: t)
+cons h (SafeList t) = SafeList (h :: t)
+
+infixr 5 `cons`
 
 
 {-| Split a non-empty list into a head and a tail -}
 uncons : Safe a (OnePlus n) -> (a, Safe a n)
-uncons (IFL (h :: t)) = (h, IFL t)
+uncons (SafeList (h :: t)) = (h, SafeList t)
 
 
 {-| Drop type-level information about this list -}
 toList : Safe a n -> List a
-toList (IFL l) = l
+toList (SafeList l) = l
 
 
-{-|
+{-| Given a some SafeList, try to convert
+a normal list into a SafeList of the same length -}
+fromList : Safe a n -> List b -> Maybe (Safe b n)
+fromList (SafeList lengthSpec) unsafeList =
+  if (List.length lengthSpec == List.length unsafeList)
+  then (Just <| SafeList unsafeList)
+  else Nothing
+
+
+{-
 Apply a list operation to a Safe-length list.
 For internal use only: the given function MUST preserve
 the length of the list.
 -}
 internalMap : (List a -> List b) -> Safe a n -> Safe b n
-internalMap f (IFL innerList) = IFL (f innerList)
+internalMap f (SafeList innerList) = SafeList (f innerList)
 
 
 {-| Works as List.map -}
@@ -138,25 +179,64 @@ Just like List.scanl, except we now have a guarantee that we increase the list l
 by exactly one, since we always put our initial value in the list.
 -}
 scanl : (a -> b -> b) -> b -> Safe a n -> Safe b (OnePlus n)
-scanl f init (IFL l) =
-  IFL <| List.scanl f init l
+scanl f init (SafeList l) =
+  SafeList <| List.scanl f init l
 
 {-| Given a list of comparable containing at least one element,
   return its largest element -}
 maximum : Safe comparable (OnePlus n) -> comparable
-maximum (IFL l) =
+maximum (SafeList l) =
   case List.maximum l of
-    Nothing -> Debug.crash "maximum: Type-leak somewhere in List.Safe"
-    Just m -> m
+    Nothing ->
+      Debug.crash "maximum: Type-leak somewhere in List.Safe"
+    Just m ->
+      m
 
 
 {-| Given a list of comparable containing at least one element,
 return its smallest element -}
 minimum : Safe comparable (OnePlus n) -> comparable
-minimum (IFL l) =
+minimum (SafeList l) =
   case List.minimum l of
-    Nothing -> Debug.crash "minimum: Type-leak somewhere in List.Safe"
-    Just m -> m
+    Nothing ->
+      Debug.crash "minimum: Type-leak somewhere in List.Safe"
+    Just m ->
+      m
+
+{-| Safe way to get the first element of a list -}
+head : Safe a (OnePlus n) -> a
+head (SafeList l) =
+  case l of
+    [] ->
+      Debug.crash "head: Type-leak somewhere in List.safe"
+    (h :: _) -> h
+
+
+{-| Safe way to get the last element of a list -}
+last : Safe a (OnePlus n) -> a
+last (SafeList innerList) =
+  let
+    lastHelper l =
+      case l of
+        [] ->
+          Debug.crash "head: Type-leak somewhere in List.safe"
+        [a] ->
+          a
+        (_ :: t) ->
+          lastHelper t
+  in
+    lastHelper innerList
+
+
+{-| Safe way to remove the first element of a list -}
+tail : Safe a (OnePlus n) -> Safe a n
+tail (SafeList l) =
+  case l of
+    [] ->
+      Debug.crash "head: Type-leak somewhere in List.safe"
+    (_ :: t) -> SafeList t
+
+
 
 
 {-|
@@ -164,7 +244,7 @@ Length-preserving list functions, identical to operations on List.List
 -}
 
 member : a -> Safe a n -> Bool
-member x (IFL l) = List.member x l
+member x (SafeList l) = List.member x l
 
 
 {-|-}
@@ -174,41 +254,41 @@ reverse = internalMap List.reverse
 
 {-|-}
 all : (a -> Bool) -> Safe a n -> Bool
-all f (IFL l) = List.all f l
+all f (SafeList l) = List.all f l
 
 
 {-|-}
 any : (a -> Bool) -> Safe a n -> Bool
-any f (IFL l) = List.any f l
+any f (SafeList l) = List.any f l
 
 
 {-|-}
 map2 : (a -> b -> c) -> Safe a n -> Safe b n -> Safe c n
-map2 f (IFL l1) (IFL l2) = IFL <| List.map2 f l1 l2
+map2 f (SafeList l1) (SafeList l2) = SafeList <| List.map2 f l1 l2
 
 
 {-|-}
 map3 : (a -> b -> c -> d) -> Safe a n -> Safe b n -> Safe c n -> Safe d n
-map3 f (IFL l1) (IFL l2) (IFL l3) = IFL <| List.map3 f l1 l2 l3
+map3 f (SafeList l1) (SafeList l2) (SafeList l3) = SafeList <| List.map3 f l1 l2 l3
 
 
 {-|-}
 map4 : (a -> b -> c -> d -> e) -> Safe a n -> Safe b n -> Safe c n -> Safe d n -> Safe e n
-map4 f (IFL l1) (IFL l2) (IFL l3) (IFL l4) = IFL <| List.map4 f l1 l2 l3 l4
+map4 f (SafeList l1) (SafeList l2) (SafeList l3) (SafeList l4) = SafeList <| List.map4 f l1 l2 l3 l4
 
 
 {-|-}
 map5 : (a -> b -> c -> d -> e -> f) -> Safe a n -> Safe b n -> Safe c n -> Safe d n -> Safe e n -> Safe f n
-map5 f (IFL l1) (IFL l2) (IFL l3) (IFL l4) (IFL l5) = IFL <| List.map5 f l1 l2 l3 l4 l5
+map5 f (SafeList l1) (SafeList l2) (SafeList l3) (SafeList l4) (SafeList l5) = SafeList <| List.map5 f l1 l2 l3 l4 l5
 
 
 {-|-}
 unzip : Safe (a,b) n -> (Safe a n, Safe b n)
-unzip (IFL l) =
+unzip (SafeList l) =
   let
     (l1, l2) = List.unzip l
   in
-    (IFL l1, IFL l2)
+    (SafeList l1, SafeList l2)
 
 {-| Just like List.sort, but with a guarantee that length is preserved -}
 sort : Safe comparable n -> Safe comparable n
@@ -222,3 +302,11 @@ sortBy f = internalMap <| List.sortBy f
 {-| Sort based on an arbitrary comparison of elements -}
 sortWith : (a -> a -> Order) -> Safe a n -> Safe a n
 sortWith f = internalMap <| List.sortWith f
+
+--Not exported, but included to make sure our example compiles
+someLength3 : Safe Int (OnePlus (OnePlus (OnePlus (Zero))) )
+someLength3 = 2 `cons` 3 `cons` 4 `cons` null
+
+--Not exported, but included to make sure bad example doesn't compile
+--badLength3 : Safe Int (OnePlus (OnePlus  (Zero)) )
+--badLength3 = 2 `cons` 3 `cons` 4 `cons` null
