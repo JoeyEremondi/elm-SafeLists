@@ -30,6 +30,16 @@ into its head and tail.
 For example:
 
     sumFirstLast =
+      let
+        (h1, t1) = uncons someLength3
+        (_, t2) = uncons t1
+        (h3, _) = uncons t2
+      in
+        h1 + h3
+
+This notation is awkward, so it's assumed this library
+will be used on small lists only.
+
 
 As well, many functions on List.List have been ported over,
 though filter, foldl and foldr are notably absent, as they
@@ -306,6 +316,14 @@ sortWith f = internalMap <| List.sortWith f
 --Not exported, but included to make sure our example compiles
 someLength3 : Safe Int (OnePlus (OnePlus (OnePlus (Zero))) )
 someLength3 = 2 `cons` 3 `cons` 4 `cons` null
+
+sumFirstLast =
+  let
+    (h1, t1) = uncons someLength3
+    (_, t2) = uncons t1
+    (h3, _) = uncons t2
+  in
+    h1 + h3
 
 --Not exported, but included to make sure bad example doesn't compile
 --badLength3 : Safe Int (OnePlus (OnePlus  (Zero)) )
