@@ -1,5 +1,5 @@
-module List.Safe
-  ( Safe, null, cons, uncons, toList, fromList
+module List.SafeList
+  ( SafeList, null, cons, uncons, toList, fromList
   , map, map2, map3, map4, map5, unzip
   , mapl, mapr, reverseMapr, scanl
   , maximum, minimum, head, tail, last
@@ -12,14 +12,14 @@ module List.Safe
 This module provides a form of list which encode their length
 in their type, using the TypeNats library. For example:
 
-    someLength3 : List.Safe Int (OnePlus (OnePlus (OnePlus (Zero))) )
+    someLength3 : List.SafeList Int (OnePlus (OnePlus (OnePlus (Zero))) )
     someLength3 = 2 `cons` 3 `cons` 4 `cons` null
 
 List whose length doesn't match their type are forbidden.
 For example:
 
     --Gives type mismatch
-    badLength3 : Safe Int (OnePlus (OnePlus  (Zero)) )
+    badLength3 : SafeList Int (OnePlus (OnePlus  (Zero)) )
     badLength3 = 2 `cons` 3 `cons` 4 `cons` null
 
 Because Elm doesn't have GADTs or DataKinds, it's impossible
@@ -34,7 +34,7 @@ For example:
         (h1, t1) = uncons someLength3
         (_, t2) = uncons t1
         (h3, t3) = uncons t2
-        tailCheck : Safe Int Zero
+        tailCheck : SafeList Int Zero
         tailCheck = t3
       in
         h1 + h3
@@ -52,7 +52,7 @@ possible to use this library when you don't know your list size in advance,
 unless only generic functions like `map` are used.
 
 # Our main type and pseudo-constructors
-@docs Safe, null, cons
+@docs SafeList, null, cons
 
 # In lieu of pattern matching:
 @docs uncons, toList, fromList
@@ -79,55 +79,55 @@ import TypeNat exposing (..)
 
 {-| A list with length encoded in its type,
 supporting a restricted set of operations. -}
-type Safe a n =
+type SafeList a n =
   SafeList (List a)
 
 
 {-| A list of length 0 -}
-null : Safe a Zero
+null : SafeList a Zero
 null = SafeList []
 
 
 {-| Given a new element and a list of length n, make a list of length n+1.
 Has the same infix precedence as (::) -}
-cons : a -> Safe a n -> Safe a (OnePlus n)
+cons : a -> SafeList a n -> SafeList a (OnePlus n)
 cons h (SafeList t) = SafeList (h :: t)
 
 infixr 5 `cons`
 
 
 {-| Split a non-empty list into a head and a tail -}
-uncons : Safe a (OnePlus n) -> (a, Safe a n)
+uncons : SafeList a (OnePlus n) -> (a, SafeList a n)
 uncons (SafeList (h :: t)) =
   (h, SafeList t)
 
 
 {-| Drop type-level information about this list -}
-toList : Safe a n -> List a
+toList : SafeList a n -> List a
 toList (SafeList l) = l
 
 
 {-| Given a some SafeList, try to convert
 a normal list into a SafeList of the same length -}
-fromList : Safe a n -> List b -> Maybe (Safe b n)
-fromList (SafeList lengthSpec) unsafeList =
-  if (List.length lengthSpec == List.length unsafeList)
-  then (Just <| SafeList unsafeList)
+fromList : SafeList a n -> List b -> Maybe (SafeList b n)
+fromList (SafeList lengthSpec) unSafeList =
+  if (List.length lengthSpec == List.length unSafeList)
+  then (Just <| SafeList unSafeList)
   else Nothing
 
 
 {-
-Apply a list operation to a Safe-length list.
+Apply a list operation to a SafeList-length list.
 For internal use only: the given function MUST preserve
 the length of the list.
 -}
-internalMap : (List a -> List b) -> Safe a n -> Safe b n
+internalMap : (List a -> List b) -> SafeList a n -> SafeList b n
 internalMap f (SafeList innerList) =
   SafeList (f innerList)
 
 
 {-| Works as List.map -}
-map : (a -> b) -> Safe a n -> Safe b n
+map : (a -> b) -> SafeList a n -> SafeList b n
 map f =
   internalMap (List.map f)
 
@@ -141,7 +141,7 @@ computed context as argument.
 General folds don't preserve the length of a list, so we use
 this restricted form of a fold.
 -}
-mapl : ((a,c) -> (b,c)) -> c -> Safe a n -> Safe b n
+mapl : ((a,c) -> (b,c)) -> c -> SafeList a n -> SafeList b n
 mapl f initialContext =
   let
     foldFn elem (restOfList, context) =
@@ -161,7 +161,7 @@ computed context as argument.
 General folds don't preserve the length of a list, so we use
 this restricted form of a fold.
 -}
-mapr : ((a,c) -> (b,c)) -> c -> Safe a n -> Safe b n
+mapr : ((a,c) -> (b,c)) -> c -> SafeList a n -> SafeList b n
 mapr f initialContext =
   let
     foldFn elem (restOfList, context) =
@@ -177,7 +177,7 @@ mapr f initialContext =
 Like mapr, but the resulting elements are in reverse order.
 Generally faster than mapr, use this when order doesn't matter.
 -}
-reverseMapr : ((a,c) -> (b,c)) -> c -> Safe a n -> Safe b n
+reverseMapr : ((a,c) -> (b,c)) -> c -> SafeList a n -> SafeList b n
 reverseMapr f initialContext =
   let
     foldFn elem (restOfList, context) =
@@ -193,48 +193,48 @@ reverseMapr f initialContext =
 Just like List.scanl, except we now have a guarantee that we increase the list lenght
 by exactly one, since we always put our initial value in the list.
 -}
-scanl : (a -> b -> b) -> b -> Safe a n -> Safe b (OnePlus n)
+scanl : (a -> b -> b) -> b -> SafeList a n -> SafeList b (OnePlus n)
 scanl f init (SafeList l) =
   SafeList <| List.scanl f init l
 
 {-| Given a list of comparable containing at least one element,
   return its largest element -}
-maximum : Safe comparable (OnePlus n) -> comparable
+maximum : SafeList comparable (OnePlus n) -> comparable
 maximum (SafeList l) =
   case List.maximum l of
     Nothing ->
-      Debug.crash "maximum: Type-leak somewhere in List.Safe"
+      Debug.crash "maximum: Type-leak somewhere in List.SafeList"
     Just m ->
       m
 
 
 {-| Given a list of comparable containing at least one element,
 return its smallest element -}
-minimum : Safe comparable (OnePlus n) -> comparable
+minimum : SafeList comparable (OnePlus n) -> comparable
 minimum (SafeList l) =
   case List.minimum l of
     Nothing ->
-      Debug.crash "minimum: Type-leak somewhere in List.Safe"
+      Debug.crash "minimum: Type-leak somewhere in List.SafeList"
     Just m ->
       m
 
-{-| Safe way to get the first element of a list -}
-head : Safe a (OnePlus n) -> a
+{-| SafeList way to get the first element of a list -}
+head : SafeList a (OnePlus n) -> a
 head (SafeList l) =
   case l of
     [] ->
-      Debug.crash "head: Type-leak somewhere in List.safe"
+      Debug.crash "head: Type-leak somewhere in List.SafeList"
     (h :: _) -> h
 
 
-{-| Safe way to get the last element of a list -}
-last : Safe a (OnePlus n) -> a
+{-| SafeList way to get the last element of a list -}
+last : SafeList a (OnePlus n) -> a
 last (SafeList innerList) =
   let
     lastHelper l =
       case l of
         [] ->
-          Debug.crash "head: Type-leak somewhere in List.safe"
+          Debug.crash "head: Type-leak somewhere in List.SafeList"
         [a] ->
           a
         (_ :: t) ->
@@ -243,12 +243,12 @@ last (SafeList innerList) =
     lastHelper innerList
 
 
-{-| Safe way to remove the first element of a list -}
-tail : Safe a (OnePlus n) -> Safe a n
+{-| SafeList way to remove the first element of a list -}
+tail : SafeList a (OnePlus n) -> SafeList a n
 tail (SafeList l) =
   case l of
     [] ->
-      Debug.crash "head: Type-leak somewhere in List.safe"
+      Debug.crash "head: Type-leak somewhere in List.SafeList"
     (_ :: t) -> SafeList t
 
 
@@ -258,55 +258,55 @@ tail (SafeList l) =
 Length-preserving list functions, identical to operations on List.List
 -}
 
-member : a -> Safe a n -> Bool
+member : a -> SafeList a n -> Bool
 member x (SafeList l) =
   List.member x l
 
 
 {-|-}
-reverse : Safe a n -> Safe a n
+reverse : SafeList a n -> SafeList a n
 reverse =
   internalMap List.reverse
 
 
 {-|-}
-all : (a -> Bool) -> Safe a n -> Bool
+all : (a -> Bool) -> SafeList a n -> Bool
 all f (SafeList l) =
   List.all f l
 
 
 {-|-}
-any : (a -> Bool) -> Safe a n -> Bool
+any : (a -> Bool) -> SafeList a n -> Bool
 any f (SafeList l) =
   List.any f l
 
 
 {-|-}
-map2 : (a -> b -> c) -> Safe a n -> Safe b n -> Safe c n
+map2 : (a -> b -> c) -> SafeList a n -> SafeList b n -> SafeList c n
 map2 f (SafeList l1) (SafeList l2) =
   SafeList <| List.map2 f l1 l2
 
 
 {-|-}
-map3 : (a -> b -> c -> d) -> Safe a n -> Safe b n -> Safe c n -> Safe d n
+map3 : (a -> b -> c -> d) -> SafeList a n -> SafeList b n -> SafeList c n -> SafeList d n
 map3 f (SafeList l1) (SafeList l2) (SafeList l3) =
   SafeList <| List.map3 f l1 l2 l3
 
 
 {-|-}
-map4 : (a -> b -> c -> d -> e) -> Safe a n -> Safe b n -> Safe c n -> Safe d n -> Safe e n
+map4 : (a -> b -> c -> d -> e) -> SafeList a n -> SafeList b n -> SafeList c n -> SafeList d n -> SafeList e n
 map4 f (SafeList l1) (SafeList l2) (SafeList l3) (SafeList l4) =
   SafeList <| List.map4 f l1 l2 l3 l4
 
 
 {-|-}
-map5 : (a -> b -> c -> d -> e -> f) -> Safe a n -> Safe b n -> Safe c n -> Safe d n -> Safe e n -> Safe f n
+map5 : (a -> b -> c -> d -> e -> f) -> SafeList a n -> SafeList b n -> SafeList c n -> SafeList d n -> SafeList e n -> SafeList f n
 map5 f (SafeList l1) (SafeList l2) (SafeList l3) (SafeList l4) (SafeList l5) =
   SafeList <| List.map5 f l1 l2 l3 l4 l5
 
 
 {-|-}
-unzip : Safe (a,b) n -> (Safe a n, Safe b n)
+unzip : SafeList (a,b) n -> (SafeList a n, SafeList b n)
 unzip (SafeList l) =
   let
     (l1, l2) = List.unzip l
@@ -315,21 +315,21 @@ unzip (SafeList l) =
 
 
 {-| Just like List.sort, but with a guarantee that length is preserved -}
-sort : Safe comparable n -> Safe comparable n
+sort : SafeList comparable n -> SafeList comparable n
 sort = internalMap List.sort
 
 
 {-| Sort based on comparable representatives -}
-sortBy : (a -> comparable) -> Safe a n -> Safe a n
+sortBy : (a -> comparable) -> SafeList a n -> SafeList a n
 sortBy f = internalMap <| List.sortBy f
 
 
 {-| Sort based on an arbitrary comparison of elements -}
-sortWith : (a -> a -> Order) -> Safe a n -> Safe a n
+sortWith : (a -> a -> Order) -> SafeList a n -> SafeList a n
 sortWith f = internalMap <| List.sortWith f
 
 --Not exported, but included to make sure our example compiles
-someLength3 : Safe Int (OnePlus (OnePlus (OnePlus (Zero))) )
+someLength3 : SafeList Int (OnePlus (OnePlus (OnePlus (Zero))) )
 someLength3 = 2 `cons` 3 `cons` 4 `cons` null
 
 sumFirstLast =
@@ -337,11 +337,11 @@ sumFirstLast =
     (h1, t1) = uncons someLength3
     (_, t2) = uncons t1
     (h3, t3) = uncons t2
-    tailCheck : Safe Int Zero
+    tailCheck : SafeList Int Zero
     tailCheck = t3
   in
     h1 + h3
 
 --Not exported, but included to make sure bad example doesn't compile
---badLength3 : Safe Int (OnePlus (OnePlus  (Zero)) )
+--badLength3 : SafeList Int (OnePlus (OnePlus  (Zero)) )
 --badLength3 = 2 `cons` 3 `cons` 4 `cons` null
