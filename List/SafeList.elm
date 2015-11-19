@@ -98,8 +98,13 @@ infixr 5 `cons`
 
 {-| Split a non-empty list into a head and a tail -}
 uncons : SafeList a (OnePlus n) -> (a, SafeList a n)
-uncons (SafeList (h :: t)) =
-  (h, SafeList t)
+uncons l =
+  case l of
+    SafeList (h :: t) ->
+      (h, SafeList t)
+
+    _ ->
+      Debug.crash "Type leak: empty list with non-Zero phantom type"
 
 
 {-| Drop type-level information about this list -}
