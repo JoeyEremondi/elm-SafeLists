@@ -1,11 +1,11 @@
-module List.Safe
+module List.Safe exposing
   ( Safe, null, cons, uncons, toList, fromList
   , map, map2, map3, map4, map5, unzip
   , mapl, mapr, reverseMapr, scanl
   , maximum, minimum, head, tail, last
   , member, reverse, all, any
   , sort, sortBy, sortWith
-  ) where
+  )
 
 
 {-|
@@ -79,8 +79,8 @@ import TypeNat exposing (..)
 
 {-| A list with length encoded in its type,
 supporting a restricted set of operations. -}
-type Safe a n =
-  SafeList (List a)
+type Safe a n
+  = SafeList (List a)
 
 
 {-| A list of length 0 -}
@@ -98,8 +98,13 @@ infixr 5 `cons`
 
 {-| Split a non-empty list into a head and a tail -}
 uncons : Safe a (OnePlus n) -> (a, Safe a n)
-uncons (SafeList (h :: t)) =
-  (h, SafeList t)
+uncons l =
+  case l of
+    (SafeList (h :: t)) ->
+      (h, SafeList t)
+
+    (SafeList []) ->
+      Debug.crash "this should never happen"
 
 
 {-| Drop type-level information about this list -}
